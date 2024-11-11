@@ -19,7 +19,7 @@ def reward_function(params):
 
     # Penalize if the car is off-track or crashed
     if is_offtrack or is_crashed:
-        reward = 1e-3  # Minimal reward
+        reward = 1e-3                                              # Minimal reward
         return float(reward)
 
     # Reward if all wheels are on track
@@ -38,9 +38,10 @@ def reward_function(params):
     # Reward proportional to the distance from the center line
     if distance_from_center <= marker_1:
         # Closest to center line
-        reward += 1.0
+        reward += 100.0
     elif distance_from_center <= marker_2:
-        reward += 0.5
+        # A bit further but still closer to the center line
+        reward += 10.5
     elif distance_from_center <= marker_3:
         reward += 0.1
     else:
