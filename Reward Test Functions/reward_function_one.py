@@ -1,76 +1,92 @@
 def reward_function(params):
     """
-    Reward function for AWS DeepRacer
+    Enhanced reward function for AWS DeepRacer with more granular center-line tracking
+    and more drastic rewards/penalties
     """
 
     # Read input parameters
-    all_wheels_on_track = params['all_wheels_on_track']           # Boolean, True if all wheels are on track
-    track_width = params['track_width']                           # Width of the track
-    distance_from_center = params['distance_from_center']         # Distance from the center line
-    speed = params['speed']                                       # Agent's speed in m/s
-    progress = params['progress']                                 # Percentage of track completed
-    steps = params['steps']                                       # Number of steps completed
-    steering_angle = abs(params['steering_angle'])                # Steering angle, absolute value
-    is_offtrack = params.get('is_offtrack', False)                # Boolean, True if the agent is off track
-    is_crashed = params.get('is_crashed', False)                  # Boolean, True if the agent has crashed
+    all_wheels_on_track = params['all_wheels_on_track']
+    track_width = params['track_width']
+    distance_from_center = params['distance_from_center']
+    speed = params['speed']
+    progress = params['progress']
+    steps = params['steps']
+    steering_angle = abs(params['steering_angle'])
+    is_offtrack = params.get('is_offtrack', False)
+    is_crashed = params.get('is_crashed', False)
 
     # Initialize reward
     reward = 1.0
 
-    # Penalize if the car is off-track or crashed
+    # Severe penalty for off-track or crashed
     if is_offtrack or is_crashed:
-        reward = 1e-3                                              # Minimal reward
+        reward = 1e-6  # Even smaller penalty than before
         return float(reward)
 
-    # Reward if all wheels are on track
+    # Basic reward for staying on track
     if all_wheels_on_track:
-        reward += 1.0
+        reward += 2.0
     else:
-        # Penalize if the car goes off track
-        reward = 1e-3
+        reward = 1e-6
         return float(reward)
 
-    # Calculate markers at varying distances from the center line
-    marker_1 = 0.1 * track_width
-    marker_2 = 0.25 * track_width
-    marker_3 = 0.5 * track_width
+    # Define more granular markers from center
+    markers = [
+        0.05 * track_width,  # Super close to center
+        0.1 * track_width,   # Very close to center
+        0.15 * track_width,  # Close to center
+        0.2 * track_width,   # Moderately close
+        0.25 * track_width,  # Getting further
+        0.35 * track_width,  # Far from center
+        0.5 * track_width    # Very far from center
+    ]
 
-    # Reward proportional to the distance from the center line
-    if distance_from_center <= marker_1:
-        # Closest to center line
-        reward += 100.0
-    elif distance_from_center <= marker_2:
-        # A bit further but still closer to the center line
-        reward += 10.5
-    elif distance_from_center <= marker_3:
-        reward += 0.1
+    # Exponentially decreasing rewards based on distance from center
+    if distance_from_center <= markers[0]:
+        reward += 1000.0  # Massive reward for perfect centering
+    elif distance_from_center <= markers[1]:
+        reward += 500.0   # Still excellent
+    elif distance_from_center <= markers[2]:
+        reward += 200.0   # Very good
+    elif distance_from_center <= markers[3]:
+        reward += 100.0   # Good
+    elif distance_from_center <= markers[4]:
+        reward += 20.0    # Acceptable
+    elif distance_from_center <= markers[5]:
+        reward += 5.0     # Poor
+    elif distance_from_center <= markers[6]:
+        reward += 1.0     # Very poor
     else:
-        # Likely crashed/close to off track
-        reward = 1e-3
+        reward = 1e-6     # Practically off track
         return float(reward)
 
-    # Speed incentive
-    SPEED_THRESHOLD = 2.0  # Define a speed threshold
+    # Enhanced speed incentive
+    SPEED_THRESHOLD = 0.5
+    MAX_SPEED = 1.0
     if speed >= SPEED_THRESHOLD:
-        # High speed reward
-        reward += 1.0
+        # Exponential reward for higher speeds when well-centered
+        if distance_from_center <= markers[2]:  # Only reward high speeds when well-centered
+            speed_ratio = (speed - SPEED_THRESHOLD) / (MAX_SPEED - SPEED_THRESHOLD)
+            reward += (50.0 * speed_ratio)
     else:
-        # Penalize slow speeds
-        reward += (speed / SPEED_THRESHOLD)
+        # Harsher penalty for slow speeds
+        reward *= (speed / SPEED_THRESHOLD)
 
-    # Steering penalty threshold, change in degrees
+    # More aggressive steering penalty
     ABS_STEERING_THRESHOLD = 15.0
-
-    # Penalize if the agent is steering too much
     if steering_angle > ABS_STEERING_THRESHOLD:
-        steering_penalty = (steering_angle / 60)  # Normalize steering between 0 and 1
-        reward *= (1.0 - steering_penalty)
+        steering_penalty = (steering_angle / 30)  # Normalize steering between 0 and 2
+        reward *= (1.0 - steering_penalty)  # Can reduce reward by up to 100%
 
-    # Progress incentive, encourage completing the track
+    # Enhanced progress incentive
+    progress_reward = (progress * progress) / 100  # Quadratic progress reward
+    reward += progress_reward
+
+    # Huge completion bonus
     if progress == 100:
-        reward += 10.0  # Big bonus for completing the lap
+        reward += 1000.0  # Much bigger bonus for completing the lap
 
     # Ensure reward is within reasonable bounds
-    reward = max(reward, 1e-3)
-
+    reward = max(reward, 1e-6)
+    
     return float(reward)
