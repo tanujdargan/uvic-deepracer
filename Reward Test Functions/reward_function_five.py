@@ -113,7 +113,7 @@ class Reward:
 
         #################### RACING LINE ######################
 
-        # Optimal racing line for the Spain track
+        # Optimal racing line for the Monza track
         # Each row: [x,y,speed,timeFromPreviousPoint]
         racing_track = [
             [3.06664, 0.69989, 4.0, 0.03654],
